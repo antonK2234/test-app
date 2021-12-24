@@ -1,0 +1,54 @@
+pipeline {
+    environment {
+        ImageName = "06031990/test:latest"
+        DockerhubCredentials = 'Suslov_dockerhub'
+        AppImage = ''
+    }
+
+
+    agent { label 'jenkins-true' }
+    stages {
+        stage('Build simple-app docker image') { 
+            steps {
+                container('jenkins-build-job') {
+                    script {
+                        AppImage = docker.build ImageName
+                    }
+
+                }
+            }
+        }
+        stage('Push image to Repository') { 
+            steps {
+                container('jenkins-build-job') {
+                    script {
+                        docker.withRegistry( '', DockerhubCredentials ) {
+                        AppImage.push()
+                        }
+                    }
+                }
+            }        
+        }
+        stage('Cleaning up') {
+            steps {
+                container('jenkins-build-job') {
+                    sh "docker rmi ${ImageName}"
+                }
+            }
+        }
+        stage('Deploy to K8s') {
+            steps{
+                container('jenkins-build-job') {
+                    sh """
+                        apk update
+                        apk add curl
+                        curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.22.2/bin/linux/amd64/kubectl
+                        chmod +x ./kubectl
+                        mv ./kubectl /usr/local/bin/kubectl
+                    """
+                    sh "kubectl apply -f Deployment.yml"
+                }
+            }
+        }
+    }
+}
