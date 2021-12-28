@@ -6,7 +6,7 @@ pipeline {
     }
 
 
-    agent { label 'jenkins-true' }
+    agent any
     stages {
         stage('Build simple-app docker image') { 
             steps {
